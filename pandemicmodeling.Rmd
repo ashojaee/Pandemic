@@ -1,0 +1,65 @@
+---
+title: "Pandemic South Carolina"
+author: "Dr Ali Shojaee Bakhtiari"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Data entry from John Hopkins
+
+```{r}
+x <- 1:26
+y <- c(2,2,6,7,9,10,12,13,19,28,33,47,60,81,126,173,195,298,342,424,456,539,660,774,925,1083)
+data.df <- data.frame(x = x, y = y)
+```
+
+## Parameter initialization
+```{r}
+theta.0 <- min(data.df$y) * 0.5  
+
+model.0 <- lm(log(y - theta.0) ~ x, data=data.df)  
+alpha.0 <- exp(coef(model.0)[1])
+beta.0 <- coef(model.0)[2]
+
+start <- list(alpha = alpha.0, beta = beta.0, theta = theta.0)
+start
+```
+
+## Exponential modeling on existing data
+
+```{r}
+model <- nls(y ~ alpha * exp(beta * x) + theta , data = data.df, start = start)
+
+plot(data.df$x, data.df$y)
+lines(data.df$x, predict(model, list(x = data.df$x)), col = 'skyblue', lwd = 3)
+```
+```{r}
+summary(model)
+
+# The number of days it takes for the cases to double
+print(log(2)/unname(coefficients(model)[2]))
+
+
+```
+
+## Predicting total cases by the end of April
+```{r}
+x_pred <- 27:(27+30)
+y_pred <- predict(model,newdata = data.frame(x=x_pred))
+plot(c(x,x_pred), c(data.df$y, y_pred))
+lines(c(x,x_pred), c(data.df$y, y_pred), col = 'skyblue', lwd = 3)
+
+# The expected number of patients by mid April if the same trajectory holds 
+print(y_pred[15])
+
+# The expected number of patients by the end of April if the same trajectory holds 
+#The model loses rleiability by then. Still it's a bleek outcome
+print(y_pred[length(y_pred)])
+
+```
+
