@@ -1,0 +1,73 @@
+---
+layout: post
+title: "Pandemic"
+output: html_document
+comments: true
+---
+
+```{r, echo = FALSE}
+library(knitr)
+opts_chunk$set(cache = TRUE, warning = FALSE, message = FALSE)
+options(digits = 3)
+```
+
+```{r cache = FALSE, echo = FALSE}
+library(ggplot2)
+theme_set(theme_bw())
+```
+
+
+```{r lahman}
+library(dplyr)
+library(ggplot2)
+library(ggrepel)
+theme_set(theme_bw())
+
+SC_counties <- read.csv(file ="SC_counties.csv")
+m <- MASS::fitdistr(SC_counties$average, dbeta,
+                    start = list(shape1 = .001, shape2 = 100),lower=0.0001)
+
+alpha0 <- m$estimate[1]
+beta0 <- m$estimate[2]
+prior_mu <- alpha0 / (alpha0 + beta0)
+
+# For each county, update the beta prior based on the evidence
+# to get posterior parameters alpha1 and beta1
+SC_counties_eb <- SC_counties %>%
+  mutate(eb_estimate = (Cases + alpha0) / (Population + alpha0 + beta0)) %>%
+  mutate(alpha1 = Cases + alpha0,
+         beta1 = Population - Cases + beta0) %>%
+  arrange(desc(eb_estimate))
+```
+
+
+
+```{r dependson = "lahman"}
+SC_counties_eb %>%
+  ggplot(aes(Population, average)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  scale_x_log10()
+```
+
+
+
+```{r dependson = "lahman", echo = FALSE}
+SC_counties_eb %>%
+  gather(type, value, average, eb_estimate) %>%
+  mutate(type = plyr::revalue(type, c(average = "Raw",
+                                      eb_estimate = "With EB Shrinkage"))) %>%
+  ggplot(aes(Population, value)) +
+  geom_point() +
+  scale_x_log10() +
+  geom_hline(color = "red", lty = 2, size = 1.5, yintercept = prior_mu) +
+  facet_wrap(~type) +
+  ylab("average") +
+    geom_smooth(method = "lm")+geom_label_repel(aes(label= ifelse(value>0.0005, as.character(County),"" )), box.padding   = 0.15, 
+                  point.padding = 0.5,
+                  segment.color = 'grey50')
+```
+
+
+
+
